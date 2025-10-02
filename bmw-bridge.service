@@ -1,0 +1,17 @@
+[Unit]
+Description=BMW CarData MQTT Bridge
+After=network-online.target
+
+[Service]
+Type=simple
+# WICHTIG: Ersetze den Pfad durch den Pfad zu deinem Projektordner
+WorkingDirectory=/home/pi/bmw-python-service
+
+# WICHTIG: Stelle sicher, dass dieser Pfad ebenfalls korrekt ist
+ExecStart=/home/pi/bmw-python-service/venv/bin/python main.py
+
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

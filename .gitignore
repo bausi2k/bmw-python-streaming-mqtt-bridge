@@ -1,0 +1,29 @@
+# Python Virtuelle Umgebung
+venv/
+env/
+.venv/
+
+# Python Cache-Dateien
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Konfigurationsdateien mit sensiblen Daten
+.env
+.env.*
+
+# Von unserem Skript erstellte Zustands- und Log-Dateien
+bmw_tokens.json
+vehicle.json
+bmw_bridge.log
+*.log
+
+# IDE- und Editor-spezifische Ordner
+.vscode/
+.idea/
+*.swp
+
+# Betriebssystem-spezifische Dateien
+.DS_Store
+Thumbs.db
