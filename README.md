@@ -93,7 +93,7 @@ To ensure the script starts automatically on boot and restarts if it crashes, we
 Create a new service definition file:
 
 ```bash
-nano ~/.config/systemd/user/bmw-bridge.service
+sudo nano /etc/systemd/system/bmw-bridge.service
 ```
 
 Paste the following content into the file. **Important:** You must replace the paths for `WorkingDirectory` and `ExecStart` with the actual path to your project directory.
@@ -149,19 +149,19 @@ Here are the most common commands to manage your new background service:
 
   - **Check the status and see the latest logs:**
     ```bash
-    systemctl --user status bmw-bridge.service
+    systemctl status bmw-bridge.service
     ```
   - **Follow the live log output:**
     ```bash
-    journalctl --user -u bmw-bridge.service -f
+    journalctl -u bmw-bridge.service -f
     ```
   - **Stop the service:**
     ```bash
-    systemctl --user stop bmw-bridge.service
+    systemctl stop bmw-bridge.service
     ```
   - **Restart the service:**
     ```bash
-    systemctl --user restart bmw-bridge.service
+    systemctl restart bmw-bridge.service
     ```
 
 ## Acknowledgements

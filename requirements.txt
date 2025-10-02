@@ -1,3 +1,7 @@
-requests
-paho-mqtt
-python-dotenv
+certifi==2025.8.3
+charset-normalizer==3.4.3
+idna==3.10
+paho-mqtt==2.1.0
+python-dotenv==1.1.1
+requests==2.32.5
+urllib3==2.5.0

@@ -5,6 +5,7 @@ import time
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import logging
+from logging.handlers import RotatingFileHandler
 import signal
 import threading
 import requests
@@ -13,23 +14,28 @@ import requests
 load_dotenv()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
-# --- Logging Konfiguration ---
-# Loggt in die Datei "bmw_bridge.log" und zusätzlich in die Konsole
-logging.basicConfig(
-    level=LOG_LEVEL,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("bmw_bridge.log"),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+# --- Logging Konfiguration mit Rotation ---
+# Erstellt eine Log-Datei mit max. 5MB und behält 5 alte Versionen
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_file = "bmw_bridge.log"
 
+file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=5)
+file_handler.setFormatter(log_formatter)
 
-# Fügt das geklonte Repo zum Python-Pfad hinzu
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setFormatter(log_formatter)
+
+logger = logging.getLogger()
+logger.setLevel(LOG_LEVEL)
+logger.addHandler(file_handler)
+logger.addHandler(stream_handler)
+
 # --- LOKALEN IMPORT ERMÖGLICHEN ---
+# Fügt das geklonte Repo zum Python-Pfad hinzu
 script_dir = os.path.dirname(os.path.abspath(__file__))
-library_path = os.path.join(script_dir, 'lib') # NEUER PFAD
+library_path = os.path.join(script_dir, 'lib')
 sys.path.append(library_path)
+
 try:
     from bmw_cardata import BMWCarDataClient
 except ImportError:
@@ -48,6 +54,7 @@ MQTT_USERNAME = os.getenv("MQTT_USERNAME")
 # Feste Konstanten
 TOKEN_FILE_PATH = "bmw_tokens.json"
 VEHICLE_CONFIG_PATH = "vehicle.json"
+AUTH_BASE_URL = 'https://customer.bmwgroup.com'
 MQTT_URL = 'mqtts://customer.streaming-cardata.bmwgroup.com'
 MQTT_PORT = 9000
 
@@ -62,6 +69,7 @@ except (FileNotFoundError, KeyError):
 shutdown_flag = threading.Event()
 bmw_client_global = None
 local_client_global = None
+last_bmw_message_timestamp = time.time()
 
 # --- Hilfs- & Callback-Funktionen ---
 def on_bmw_connect():
@@ -69,6 +77,8 @@ def on_bmw_connect():
     logging.info("Warte auf Live-Daten... 📡")
 
 def on_bmw_message(topic: str, data: dict):
+    global last_bmw_message_timestamp
+    last_bmw_message_timestamp = time.time()
     logging.debug(f"--- 🔴 BMW-Daten empfangen ---")
     base_topic = "home/bmw/live"
     data_points = data.get('data', {})
@@ -103,12 +113,38 @@ def graceful_shutdown(signum, frame):
     logging.info("Shutdown-Signal empfangen, beende...")
     shutdown_flag.set()
 
+# --- Hintergrund-Threads ---
+def token_refresh_loop(client: BMWCarDataClient, stop_event: threading.Event):
+    logging.info("Token-Refresh-Thread gestartet. Prüfung alle 30 Minuten.")
+    while not stop_event.is_set():
+        stop_event.wait(1800) 
+        if stop_event.is_set():
+            break
+        
+        logging.info("Führe periodischen Token-Refresh-Check durch...")
+        try:
+            if client.authenticate():
+                logging.info("Token-Check/Refresh erfolgreich.")
+            else:
+                logging.warning("Periodischer Token-Check/Refresh ist fehlgeschlagen.")
+        except Exception as e:
+            logging.error(f"Fehler im Token-Refresh-Thread: {e}")
+
+def watchdog_thread(stop_event: threading.Event):
+    logging.info("Watchdog-Thread gestartet. Prüfung alle 60 Minuten.")
+    while not stop_event.is_set():
+        stop_event.wait(3600)
+        if stop_event.is_set():
+            break
+        
+        if time.time() - last_bmw_message_timestamp > 3 * 3600:
+            logging.warning("Watchdog: Seit über 3 Stunden keine Nachricht von BMW empfangen! Verbindung könnte 'stale' sein.")
+
 # --- Haupt-Logik ---
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
 
-    # --- Setup für den lokalen MQTT-Broker mit Retry-Logik ---
     local_client_global = mqtt.Client()
     local_client_global.username_pw_set(LOCAL_MQTT_USER, LOCAL_MQTT_PASS)
     
@@ -135,26 +171,35 @@ if __name__ == "__main__":
         logging.error("❌ Konnte nach mehreren Versuchen keine Verbindung zum lokalen MQTT-Broker herstellen. Beende.")
         exit()
 
-    # --- Setup für den BMW-Client ---
     logging.info("Starte BMW CarData Client...")
     bmw_client_global = BMWCarDataClient(client_id=CLIENT_ID, vin=VIN)
     bmw_client_global.set_connect_callback(on_bmw_connect)
     bmw_client_global.set_message_callback(on_bmw_message)
 
-    logging.info("Starte Authentifizierung... Bitte den Anweisungen im Terminal folgen.")
+    logging.info("Starte Authentifizierung...")
     if bmw_client_global.authenticate():
         logging.info("✅ Authentifizierung erfolgreich!")
         
+        shutdown_event_refresh = threading.Event()
+        refresh_thread = threading.Thread(target=token_refresh_loop, args=(bmw_client_global, shutdown_event_refresh))
+        refresh_thread.start()
+
+        shutdown_event_watchdog = threading.Event()
+        watchdog = threading.Thread(target=watchdog_thread, args=(shutdown_event_watchdog,))
+        watchdog.start()
+
         bmw_client_global.connect_mqtt()
         
-        while not shutdown_flag.is_set():
-            # Die Hauptschleife wartet hier einfach auf das Shutdown-Signal
-            time.sleep(1)
+        shutdown_flag.wait()
+
+        shutdown_event_refresh.set()
+        shutdown_event_watchdog.set()
+        refresh_thread.join()
+        watchdog.join()
 
     else:
         logging.error("❌ Authentifizierung fehlgeschlagen.")
 
-    # --- Aufräumen beim Beenden ---
     logging.info("Beende Skript und trenne Verbindungen...")
     if bmw_client_global:
         bmw_client_global.disconnect_mqtt()
