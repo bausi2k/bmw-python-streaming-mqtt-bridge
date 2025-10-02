@@ -4,7 +4,7 @@ Hier ist die aktualisierte `README.md`-Datei.
 
 -----
 
-````markdown
+
 # BMW Python Streaming MQTT Bridge
 
 This project acts as a stable, long-running bridge service that connects to the official BMW CarData Streaming API, authenticates, and forwards vehicle data in real-time to a local MQTT broker.
