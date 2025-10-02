@@ -93,7 +93,7 @@ To ensure the script starts automatically on boot and restarts if it crashes, we
 Create a new service definition file:
 
 ```bash
-nano ~/.config/systemd/user/bmw-bridge.service
+sudo nano /etc/systemd/system/bmw-bridge.service
 ```
 
 Paste the following content into the file. **Important:** You must replace the paths for `WorkingDirectory` and `ExecStart` with the actual path to your project directory.
