@@ -75,11 +75,13 @@ last_bmw_message_timestamp = time.time()
 def on_bmw_connect():
     logging.info("✅ Erfolgreich mit dem BMW Streaming-Server verbunden!")
     logging.info("Warte auf Live-Daten... 📡")
-
+# HIER FINDET DIE ÄNDERUNG STATT
 def on_bmw_message(topic: str, data: dict):
+    """Wird bei jeder neuen Nachricht von BMW aufgerufen und verteilt die Daten auf Sub-Topics."""
     global last_bmw_message_timestamp
     last_bmw_message_timestamp = time.time()
     logging.debug(f"--- 🔴 BMW-Daten empfangen ---")
+    
     base_topic = "home/bmw/live"
     data_points = data.get('data', {})
 
@@ -89,25 +91,36 @@ def on_bmw_message(topic: str, data: dict):
 
     for metric_name, metric_data in data_points.items():
         try:
-            sub_topic = metric_name.replace('.', '/')
-            full_topic = f"{base_topic}/{sub_topic}"
+            metric_base_topic = f"{base_topic}/{metric_name.replace('.', '/')}"
             
+            # --- 1. Veröffentliche das komplette Objekt ---
             if isinstance(metric_data, (dict, list)):
-                payload = json.dumps(metric_data)
-            else:
-                payload = str(metric_data)
-
-            if local_client_global and local_client_global.is_connected():
-                result = local_client_global.publish(full_topic, payload, retain=True)
+                full_payload = json.dumps(metric_data)
+                result = local_client_global.publish(metric_base_topic, full_payload, retain=True)
                 if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                    logging.debug(f'  -> Gesendet an: {full_topic}')
+                    # KÜRZE DEN TOPIC-NAMEN FÜR DIE LOG-AUSGABE
+                    truncated_topic = metric_base_topic[-40:]
+                    logging.debug(f'  -> ...{truncated_topic:<40} | {full_payload}')
                 else:
-                    logging.warning(f'  -> Fehler beim Senden an {full_topic}. Code: {result.rc}')
-            else:
-                logging.warning("Lokaler MQTT-Client nicht verbunden, kann Nachricht nicht weiterleiten.")
+                    logging.warning(f'  -> Fehler beim Senden an {metric_base_topic}. Code: {result.rc}')
+            
+            # --- 2. Veröffentliche zusätzlich die einzelnen Werte auf Sub-Topics ---
+            if isinstance(metric_data, dict):
+                for key, value in metric_data.items():
+                    final_topic = f"{metric_base_topic}/{key}"
+                    final_payload = str(value)
+
+                    result = local_client_global.publish(final_topic, final_payload, retain=True)
+                    if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                        # KÜRZE DEN TOPIC-NAMEN UND ZEIGE DEN WERT AN
+                        truncated_topic = final_topic[-40:]
+                        logging.debug(f'  -> ...{truncated_topic:<40} | {final_payload}')
+                    else:
+                        logging.warning(f'  -> Fehler beim Senden an {final_topic}. Code: {result.rc}')
 
         except Exception as e:
             logging.error(f"Fehler bei der Verarbeitung der Nachricht für Metrik {metric_name}: {e}")
+
 
 def graceful_shutdown(signum, frame):
     logging.info("Shutdown-Signal empfangen, beende...")
