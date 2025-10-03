@@ -5,7 +5,7 @@ import time
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 import signal
 import threading
 import requests
@@ -14,12 +14,12 @@ import requests
 load_dotenv()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
-# --- Logging Konfiguration mit Rotation ---
-# Erstellt eine Log-Datei mit max. 5MB und behält 5 alte Versionen
+# --- Logging Konfiguration mit zeitbasierter Rotation ---
 log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 log_file = "bmw_bridge.log"
 
-file_handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=5)
+# Rotiert das Logfile jeden Tag um Mitternacht und behält 7 alte Versionen
+file_handler = TimedRotatingFileHandler(log_file, when='midnight', backupCount=7, encoding='utf-8')
 file_handler.setFormatter(log_formatter)
 
 stream_handler = logging.StreamHandler(sys.stdout)
@@ -31,7 +31,6 @@ logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
 # --- LOKALEN IMPORT ERMÖGLICHEN ---
-# Fügt das geklonte Repo zum Python-Pfad hinzu
 script_dir = os.path.dirname(os.path.abspath(__file__))
 library_path = os.path.join(script_dir, 'lib')
 sys.path.append(library_path)
@@ -71,40 +70,37 @@ bmw_client_global = None
 local_client_global = None
 last_bmw_message_timestamp = time.time()
 
-# --- Hilfs- & Callback-Funktionen ---
+# --- HILFS- & AUTH-FUNKTIONEN ---
+# (Diese Funktionen sind hier zur Kürze weggelassen, sie sind im Code enthalten)
+
+# --- Callback-Funktionen ---
 def on_bmw_connect():
     logging.info("✅ Erfolgreich mit dem BMW Streaming-Server verbunden!")
     logging.info("Warte auf Live-Daten... 📡")
-# HIER FINDET DIE ÄNDERUNG STATT
+
 def on_bmw_message(topic: str, data: dict):
-    """Wird bei jeder neuen Nachricht von BMW aufgerufen und verteilt die Daten auf Sub-Topics."""
     global last_bmw_message_timestamp
     last_bmw_message_timestamp = time.time()
     logging.debug(f"--- 🔴 BMW-Daten empfangen ---")
-    
     base_topic = "home/bmw/live"
     data_points = data.get('data', {})
 
     if not data_points:
-        logging.warning("  -> BMW-Nachricht hatte kein 'data'-Feld, überspringe.")
+        logging.warning("  -> BMW-Nachricht hatte kein 'data'-feld, überspringe.")
         return
 
     for metric_name, metric_data in data_points.items():
         try:
             metric_base_topic = f"{base_topic}/{metric_name.replace('.', '/')}"
             
-            # --- 1. Veröffentliche das komplette Objekt ---
             if isinstance(metric_data, (dict, list)):
                 full_payload = json.dumps(metric_data)
                 result = local_client_global.publish(metric_base_topic, full_payload, retain=True)
                 if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                    # KÜRZE DEN TOPIC-NAMEN FÜR DIE LOG-AUSGABE
-                    truncated_topic = metric_base_topic[-40:]
-                    logging.debug(f'  -> ...{truncated_topic:<40} | {full_payload}')
+                    logging.debug(f'  -> {metric_base_topic:<90} | {full_payload}')
                 else:
                     logging.warning(f'  -> Fehler beim Senden an {metric_base_topic}. Code: {result.rc}')
             
-            # --- 2. Veröffentliche zusätzlich die einzelnen Werte auf Sub-Topics ---
             if isinstance(metric_data, dict):
                 for key, value in metric_data.items():
                     final_topic = f"{metric_base_topic}/{key}"
@@ -112,15 +108,12 @@ def on_bmw_message(topic: str, data: dict):
 
                     result = local_client_global.publish(final_topic, final_payload, retain=True)
                     if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                        # KÜRZE DEN TOPIC-NAMEN UND ZEIGE DEN WERT AN
-                        truncated_topic = final_topic[-40:]
-                        logging.debug(f'  -> ...{truncated_topic:<40} | {final_payload}')
+                        logging.debug(f'  -> {final_topic:<90} | {final_payload}')
                     else:
                         logging.warning(f'  -> Fehler beim Senden an {final_topic}. Code: {result.rc}')
 
         except Exception as e:
             logging.error(f"Fehler bei der Verarbeitung der Nachricht für Metrik {metric_name}: {e}")
-
 
 def graceful_shutdown(signum, frame):
     logging.info("Shutdown-Signal empfangen, beende...")
@@ -128,20 +121,28 @@ def graceful_shutdown(signum, frame):
 
 # --- Hintergrund-Threads ---
 def token_refresh_loop(client: BMWCarDataClient, stop_event: threading.Event):
-    logging.info("Token-Refresh-Thread gestartet. Prüfung alle 30 Minuten.")
+    logging.info("Token-Refresh-Thread gestartet. Prüfung alle 15 Minuten.")
     while not stop_event.is_set():
-        stop_event.wait(1800) 
+        stop_event.wait(900) 
         if stop_event.is_set():
             break
         
         logging.info("Führe periodischen Token-Refresh-Check durch...")
         try:
+            old_id_token = client.tokens.get('id_token') if client.tokens else None
             if client.authenticate():
-                logging.info("Token-Check/Refresh erfolgreich.")
+                new_id_token = client.tokens.get('id_token') if client.tokens else None
+                if old_id_token and new_id_token and old_id_token != new_id_token:
+                    logging.info("Token wurde erfolgreich erneuert. Starte MQTT-Client neu, um neuen Token zu verwenden.")
+                    client.disconnect_mqtt()
+                    time.sleep(5)
+                    client.connect_mqtt()
+                else:
+                    logging.info("Token-Check abgeschlossen. Token ist weiterhin gültig.")
             else:
                 logging.warning("Periodischer Token-Check/Refresh ist fehlgeschlagen.")
         except Exception as e:
-            logging.error(f"Fehler im Token-Refresh-Thread: {e}")
+            logging.error(f"Fehler im Token-Refresh-Thread: {e}", exc_info=True)
 
 def watchdog_thread(stop_event: threading.Event):
     logging.info("Watchdog-Thread gestartet. Prüfung alle 60 Minuten.")
