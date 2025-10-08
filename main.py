@@ -70,8 +70,29 @@ bmw_client_global = None
 local_client_global = None
 last_bmw_message_timestamp = time.time()
 
+# --- NEU START: Globale Variablen zum Speichern der einzigartigen Topics ---
+TOPICS_FILE = "distinct_topics.txt"
+seen_topics = set()
+# --- NEU ENDE ---
+
+
 # --- HILFS- & AUTH-FUNKTIONEN ---
 # (Diese Funktionen sind hier zur Kürze weggelassen, sie sind im Code enthalten)
+
+
+# --- NEU START: Hilfsfunktion zum Loggen neuer Topics ---
+def log_distinct_topic(topic: str):
+    """Prüft, ob ein Topic neu ist und speichert es bei Bedarf in die Datei."""
+    if topic not in seen_topics:
+        seen_topics.add(topic)
+        try:
+            with open(TOPICS_FILE, "a", encoding='utf-8') as f:
+                f.write(topic + "\n")
+            logging.info(f"✨ Neues Topic entdeckt und in '{TOPICS_FILE}' gespeichert: {topic}")
+        except Exception as e:
+            logging.error(f"Fehler beim Schreiben in die Topic-Datei: {e}")
+# --- NEU ENDE ---
+
 
 # --- Callback-Funktionen ---
 def on_bmw_connect():
@@ -92,18 +113,23 @@ def on_bmw_message(topic: str, data: dict):
     for metric_name, metric_data in data_points.items():
         try:
             metric_base_topic = f"{base_topic}/{metric_name.replace('.', '/')}"
+            log_distinct_topic(metric_base_topic) # --- NEU: Basis-Topic loggen ---
+
+            # --- GEÄNDERT: Block zum Senden des gesamten Objekts (auf Wunsch des Users deaktiviert) ---
+            # if isinstance(metric_data, (dict, list)):
+            #     full_payload = json.dumps(metric_data)
+            #     result = local_client_global.publish(metric_base_topic, full_payload, retain=True)
+            #     if result.rc == mqtt.MQTT_ERR_SUCCESS:
+            #         logging.debug(f'  -> {metric_base_topic:<90} | {full_payload}')
+            #     else:
+            #         logging.warning(f'  -> Fehler beim Senden an {metric_base_topic}. Code: {result.rc}')
             
-            if isinstance(metric_data, (dict, list)):
-                full_payload = json.dumps(metric_data)
-                result = local_client_global.publish(metric_base_topic, full_payload, retain=True)
-                if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                    logging.debug(f'  -> {metric_base_topic:<90} | {full_payload}')
-                else:
-                    logging.warning(f'  -> Fehler beim Senden an {metric_base_topic}. Code: {result.rc}')
-            
+            # --- Dieser Block bleibt aktiv, um die "flachen" Werte zu senden ---
             if isinstance(metric_data, dict):
                 for key, value in metric_data.items():
                     final_topic = f"{metric_base_topic}/{key}"
+                    log_distinct_topic(final_topic) # --- NEU: Finales Topic loggen ---
+                    
                     final_payload = str(value)
 
                     result = local_client_global.publish(final_topic, final_payload, retain=True)
@@ -121,9 +147,9 @@ def graceful_shutdown(signum, frame):
 
 # --- Hintergrund-Threads ---
 def token_refresh_loop(client: BMWCarDataClient, stop_event: threading.Event):
-    logging.info("Token-Refresh-Thread gestartet. Prüfung alle 15 Minuten.")
+    logging.info("Token-Refresh-Thread gestartet. Prüfung alle 55 Minuten.")
     while not stop_event.is_set():
-        stop_event.wait(900) 
+        stop_event.wait(3300) 
         if stop_event.is_set():
             break
         
@@ -158,6 +184,15 @@ def watchdog_thread(stop_event: threading.Event):
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
+
+    # --- NEU START: Lade bereits bekannte Topics aus der Datei ---
+    try:
+        with open(TOPICS_FILE, "r", encoding='utf-8') as f:
+            seen_topics = set(line.strip() for line in f)
+        logging.info(f"✅ {len(seen_topics)} bekannte Topics aus '{TOPICS_FILE}' geladen.")
+    except FileNotFoundError:
+        logging.info(f"'{TOPICS_FILE}' nicht gefunden. Wird bei Bedarf neu erstellt.")
+    # --- NEU ENDE ---
 
     local_client_global = mqtt.Client()
     local_client_global.username_pw_set(LOCAL_MQTT_USER, LOCAL_MQTT_PASS)
