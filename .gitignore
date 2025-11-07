@@ -27,3 +27,6 @@ bmw_bridge.log
 # Betriebssystem-spezifische Dateien
 .DS_Store
 Thumbs.db
+
+# Log-Dateien ignorieren
+bmw_bridge.log.*
