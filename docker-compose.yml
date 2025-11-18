@@ -21,6 +21,8 @@ services:
       - ./vehicle.json:/app/vehicle.json
       # Das Logfile, damit du es auch außerhalb einfach ansehen kannst
       - ./bmw_bridge.log:/app/bmw_bridge.log
+      # NEU: Die .env Datei auch als Datei einbinden
+      - ./.env:/app/.env
       
     # Zeitzone setzen (optional, aber gut für korrekte Log-Zeitstempel)
     environment:

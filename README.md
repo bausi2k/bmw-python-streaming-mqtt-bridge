@@ -1,176 +1,183 @@
-Ja, selbstverständlich. Wir ersetzen den Docker-Teil im `README.md` durch die Anleitung für die Einrichtung als `systemd`-Service. Das passt perfekt für den Betrieb auf einem Raspberry Pi.
 
-Hier ist die aktualisierte `README.md`-Datei.
+# BMW CarData Streaming MQTT Bridge
 
------
+🇬🇧 [English Version below](#english) | 🇦🇹 [Deutsche Version unten](#deutsch)
 
+---
 
-# BMW Python Streaming MQTT Bridge
+<a name="english"></a>
+## 🇬🇧 BMW CarData Streaming MQTT Bridge
 
-This project acts as a stable, long-running bridge service that connects to the official BMW CarData Streaming API, authenticates, and forwards vehicle data in real-time to a local MQTT broker.
+This project acts as a robust, long-running bridge service connecting the official **BMW CarData Streaming API** with your local MQTT broker. It receives real-time vehicle data (Push/Streaming) and forwards it to your home automation system (e.g., Node-RED, Home Assistant, Grafana).
 
-It is designed to be a robust, set-and-forget solution, perfect for running on a low-power device like a Raspberry Pi to integrate your vehicle's live data into home automation systems (like Node-RED, Home Assistant) or data logging platforms (like Grafana).
+It handles the entire OAuth2 authentication lifecycle, including automatic token refreshing, ensuring a maintenance-free operation.
 
-## Features
+### ✨ Features
+* **Real-time Streaming:** Connects to BMW's MQTT interface via WebSockets/MQTT.
+* **Robust Authentication:** Implements the OAuth2 Device Code Flow.
+* **Auto-Healing:** Automatically refreshes access tokens before they expire and reconnects on network loss.
+* **Watchdog:** Monitors data traffic and restarts connections if the stream stalls.
+* **Dockerized:** Runs as a lightweight, isolated container using Docker Compose.
+* **Dynamic Topics:** Flattens complex JSON data into clean MQTT topics (e.g., `home/bmw/live/vehicle/mileage`).
 
--   **Robust Authentication:** Uses the OAuth2 Device Code Flow to securely authenticate with the BMW CarData API.
--   **Automatic Token Management:** Automatically saves and refreshes access tokens to ensure long-term, uninterrupted operation.
--   **Real-time Data Streaming:** Connects directly to BMW's MQTT server to receive live data pushes from the vehicle.
--   **Local MQTT Bridge:** Re-publishes all received data to a local MQTT broker, making it easily accessible for other services on your network.
--   **Dynamic Topic Creation:** Automatically structures the data on the local broker by creating a hierarchical topic for each individual metric (e.g., `home/bmw/live/vehicle/mileage`).
--   **Fail-Safe Design:** Built to be resilient against network interruptions and includes configurable logging for easy monitoring.
+### ⚠️ Acknowledgements & Credits
 
-## Setup
+**This project is built upon the foundational work of:**
+👉 **[whi-tw/bmw-cardata-streaming-poc](https://github.com/whi-tw/bmw-cardata-streaming-poc)**
 
-This service is designed to be run directly via Python on a host system (like a Raspberry Pi).
+The core Python client logic (`lib/bmw_cardata.py`) responsible for the protocol implementation and authentication flow is taken from that repository. A huge thank you to the author for reverse-engineering the API!
 
-### 1. Prerequisites
+---
 
-Before you start, you need to prepare three configuration files in the root directory of the project.
+### 🚀 Installation (Docker Compose)
 
-**A. `.env` file:**
-Create a `.env` file to store your credentials and configuration.
+#### 1. Prerequisites & Credentials
 
+To use this bridge, you need specific credentials from the BMW Developer Portal.
+
+* **Client ID:** You can find instructions on how to register and obtain your Client ID here:  
+    [BMW CarData - Technical Registration](https://bmw-cardata.bmwgroup.com/customer/public/api-documentation/Id-Technical-registration)
+* **MQTT Username:** You can find your specific MQTT Username in the Streaming documentation here:  
+    [BMW CarData - Streaming Documentation](https://bmw-cardata.bmwgroup.com/customer/public/api-documentation/Id-Streaming)
+
+#### 2. Configuration Files
+
+Create the following files in your project directory:
+
+**`.env`** (Configuration)
 ```ini
-# Your BMW CarData Credentials & Config
-CLIENT_ID=YOUR_CLIENT_ID 			# provided, when creating an application in the BMW Portal
-MQTT_USERNAME=BMW_MQTT_USERNAME 	# provided in the BMW Portal, when creating a REaltime Datapoint
+# BMW Config
+# Insert the credentials obtained from the BMW Portal links above
+CLIENT_ID=YOUR_BMW_CLIENT_ID
+MQTT_USERNAME=YOUR_BMW_MQTT_USERNAME
 
-# Your Local MQTT Broker Details
-LOCAL_MQTT_URL=192.168.1.100
+# Local MQTT Broker
+LOCAL_MQTT_URL=192.168.1.xxx
 LOCAL_MQTT_PORT=1883
-LOCAL_MQTT_USER=your_local_username
+LOCAL_MQTT_USER=your_local_user
 LOCAL_MQTT_PASS=your_local_password
 
-# Logging Level: DEBUG, INFO, WARNING, ERROR
+# Logs
 LOG_LEVEL=INFO
 ````
 
-**B. `vehicle.json` file:**
-Create a `vehicle.json` file containing your car's 17-character Vehicle Identification Number (VIN).
+**`vehicle.json`** (Your car's VIN)
 
 ```json
 {
-  "vin": "YOUR_VEHICLE_VIN_HERE"
+  "vin": "WBA............."
 }
 ```
 
-**C. `bmw_cardata.py` Client:**
-This project relies on the Python client found within the `bmw-cardata-streaming-poc` repository. As per the project structure, place the `bmw_cardata.py` file in a `lib/` subdirectory.
-
-### 2\. Installation
-
-1.  Clone this repository to your Raspberry Pi (e.g., in `/home/pi/bmw-python-bridge`).
-2.  Create a Python virtual environment:
-    ```bash
-    cd /path/to/your/project
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-3.  Install the required dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-### 3\. First Run & Authentication
-
-On the very first run, you will need to authenticate the application with your BMW account.
-
-1.  Run the script manually from the terminal:
-    ```bash
-    python main.py
-    ```
-2.  The script will start the "Device Code Flow" and open a URL in your browser.
-3.  Log in with your BMW account credentials and grant the application access.
-4.  Once approved, the script will automatically obtain the necessary tokens, save them to `bmw_tokens.json`, and start the MQTT bridge. You can stop the script with `Ctrl+C` once you see it's working.
-
-## Usage (as a systemd Service on Raspberry Pi)
-
-To ensure the script starts automatically on boot and restarts if it crashes, we register it as a `systemd` user service.
-
-### 1\. Create the Service File
-
-Create a new service definition file:
+**Initialize empty files** (Required for Docker mounting):
 
 ```bash
-sudo nano /etc/systemd/system/bmw-bridge.service
+echo "{}" > bmw_tokens.json
+touch bmw_bridge.log
 ```
 
-Paste the following content into the file. **Important:** You must replace the paths for `WorkingDirectory` and `ExecStart` with the actual path to your project directory.
+#### 3\. Start the Container
+
+```bash
+docker compose up -d --build
+```
+
+#### 4\. First Run (Authentication)
+
+1.  Check the logs immediately after starting: `docker compose logs -f`
+2.  You will see a URL provided by BMW.
+3.  Open the URL in your browser and log in with your BMW ID to authorize the application.
+4.  The script will automatically receive the tokens, save them, and start streaming.
+
+-----
+
+-----
+
+<a name="deutsch"></a>
+
+## 🇦🇹 BMW CarData Streaming MQTT Bridge
+
+Dieses Projekt dient als stabile Brücke zwischen der offiziellen **BMW CarData Streaming API** und deinem lokalen MQTT-Broker. Es empfängt Fahrzeugdaten in Echtzeit (Push/Streaming) und leitet sie an dein Smart Home System weiter (z.B. Node-RED, Home Assistant, Grafana).
+
+Der Service kümmert sich vollautomatisch um die OAuth2-Authentifizierung und das Erneuern der Tokens, sodass ein wartungsfreier Dauerbetrieb möglich ist.
+
+### ✨ Funktionen
+
+  * **Echtzeit-Streaming:** Verbindet sich via WebSockets/MQTT direkt mit dem BMW-Server.
+  * **Robuste Authentifizierung:** Nutzt den offiziellen OAuth2 Device Code Flow.
+  * **Selbstheilung:** Erneuert Tokens automatisch im Hintergrund, bevor sie ablaufen, und verbindet sich bei Fehlern neu.
+  * **Watchdog:** Überwacht den Datenfluss und startet die Verbindung neu, falls keine Daten mehr ankommen.
+  * **Docker:** Läuft als isolierter Container (Docker Compose).
+  * **Strukturierte Daten:** Wandelt komplexe JSON-Objekte in saubere MQTT-Topics um (z.B. `home/bmw/live/vehicle/mileage`).
+
+### ⚠️ Danksagung & Credits
+
+**Dieses Projekt basiert maßgeblich auf der Arbeit von:**
+👉 **[whi-tw/bmw-cardata-streaming-poc](https://github.com/whi-tw/bmw-cardata-streaming-poc)**
+
+Der Kern-Client (`lib/bmw_cardata.py`), der für die Protokoll-Implementierung und den Anmeldeprozess zuständig ist, stammt aus diesem Repository. Ein großes Dankeschön an den Autor für das Reverse-Engineering der API\!
+
+-----
+
+### 🚀 Installation (Docker Compose)
+
+#### 1\. Voraussetzungen & Zugangsdaten
+
+Um diese Brücke zu nutzen, benötigen Sie spezifische Zugangsdaten aus dem BMW Developer Portal.
+
+  * **Client ID:** Anweisungen zur Registrierung und zum Erhalt der Client ID finden Sie hier:  
+    [BMW CarData - Technische Registrierung](https://bmw-cardata.bmwgroup.com/customer/public/api-documentation/Id-Technical-registration)
+  * **MQTT Username:** Ihren spezifischen MQTT-Benutzernamen finden Sie in der Streaming-Dokumentation hier:  
+    [BMW CarData - Streaming Dokumentation](https://bmw-cardata.bmwgroup.com/customer/public/api-documentation/Id-Streaming)
+
+#### 2\. Konfigurationsdateien
+
+Erstellen Sie die folgenden Dateien in Ihrem Projektverzeichnis:
+
+**`.env`** (Konfiguration)
 
 ```ini
-[Unit]
-Description=BMW CarData MQTT Bridge
-# Make sure the service only starts after the network is available
-After=network-online.target
+# BMW Konfiguration
+# Fügen Sie hier die Daten aus den oben verlinkten BMW-Portalen ein
+CLIENT_ID=IHRE_BMW_CLIENT_ID
+MQTT_USERNAME=IHR_BMW_MQTT_USERNAME
 
-[Service]
-Type=simple
+# Lokaler MQTT Broker
+LOCAL_MQTT_URL=192.168.1.xxx
+LOCAL_MQTT_PORT=1883
+LOCAL_MQTT_USER=dein_lokaler_user
+LOCAL_MQTT_PASS=dein_lokales_passwort
 
-# !!! IMPORTANT: Replace this path with the full path to your project folder !!!
-WorkingDirectory=/home/pi/bmw-python-streaming-mqtt-bridge
-
-# !!! IMPORTANT: Make sure this path to your venv's python is correct !!!
-ExecStart=/home/pi/bmw-python-streaming-mqtt-bridge/venv/bin/python main.py
-
-# Automatically restart the service if it fails
-Restart=on-failure
-RestartSec=30
-
-[Install]
-WantedBy=default.target
+# Logs
+LOG_LEVEL=INFO
 ```
 
-> **Tip:** To find the correct full path, navigate to your project folder and run the `pwd` command.
+**`vehicle.json`** (Deine Fahrgestellnummer/VIN)
 
-Save and close the file (`Ctrl+X`, then `Y`, then `Enter`).
+```json
+{
+  "vin": "WBA............."
+}
+```
 
-### 2\. Enable and Start the Service
-
-Run the following commands in order:
+**Leere Dateien initialisieren** (Wichtig für Docker Mounts):
 
 ```bash
-# Allow the service to start at boot, even if you are not logged in (crucial step!)
-loginctl enable-linger $(whoami)
-
-# Tell systemd to read the new service file
-systemctl --user daemon-reload
-
-# Enable the service to start automatically on every boot
-systemctl --user enable bmw-bridge.service
-
-# Start the service right now
-systemctl --user start bmw-bridge.service
+echo "{}" > bmw_tokens.json
+touch bmw_bridge.log
 ```
 
-### 3\. Managing the Service
+#### 3\. Container starten
 
-Here are the most common commands to manage your new background service:
-
-  - **Check the status and see the latest logs:**
-    ```bash
-    systemctl status bmw-bridge.service
-    ```
-  - **Follow the live log output:**
-    ```bash
-    journalctl -u bmw-bridge.service -f
-    ```
-  - **Stop the service:**
-    ```bash
-    systemctl stop bmw-bridge.service
-    ```
-  - **Restart the service:**
-    ```bash
-    systemctl restart bmw-bridge.service
-    ```
-
-## Acknowledgements
-
-This project would not be possible without the foundational work done on the Python client for the BMW CarData API. The core `bmw_cardata.py` client used in this project originates from the following repository:
-
-  - **[whi-tw/bmw-cardata-streaming-poc](https://github.com/whi-tw/bmw-cardata-streaming-poc)**
-
-A huge thank you to the author for reverse-engineering the API and providing a functional client.
-
+```bash
+docker compose up -d --build
 ```
-```
+
+#### 4\. Erster Start (Anmeldung)
+
+1.  Öffne sofort die Logs: `docker compose logs -f`
+2.  Dort wird ein Link zur BMW-Webseite angezeigt.
+3.  Öffne den Link im Browser und melde dich mit deiner BMW ID an, um den Zugriff zu genehmigen.
+4.  Das Skript empfängt die Tokens automatisch, speichert sie und beginnt mit dem Streaming.
+
+<!-- end list -->

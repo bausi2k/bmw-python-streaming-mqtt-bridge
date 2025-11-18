@@ -1,19 +1,17 @@
-# 1. Basis-Image: Ein schlankes, offizielles Python 3.11 Image
+# Wir nutzen ein schlankes Python 3.11 Image als Basis
 FROM python:3.11-slim
 
-# 2. Arbeitsverzeichnis im Container festlegen
+# Setze das Arbeitsverzeichnis im Container
 WORKDIR /app
 
-# 3. Abhängigkeiten installieren (dieser Schritt wird gecached, um Builds zu beschleunigen)
+# Kopiere die Requirements-Datei und installiere Abhängigkeiten
+# Wir machen das ZUERST, damit Docker diesen Schritt cachen kann
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. Den restlichen Code der Anwendung in den Container kopieren
+# Kopiere den restlichen Code (main.py, lib/, etc.)
 COPY . .
 
-# 5. Den Port freigeben, auf dem unser Service lauscht
-EXPOSE 8000
-
-# 6. Der Befehl, der beim Starten des Containers ausgeführt wird
-# Wir binden den Server an 0.0.0.0, damit er von außerhalb des Containers erreichbar ist
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Definiere den Startbefehl
+# -u (unbuffered) ist wichtig, damit Logs sofort in Docker angezeigt werden
+CMD ["python", "-u", "main.py"]
