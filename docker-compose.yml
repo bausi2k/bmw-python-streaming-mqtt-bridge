@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  bmw-bridge:
+    # Baut das Image aus dem aktuellen Verzeichnis
+    build: . 
+    container_name: bmw-bridge
+    
+    # Startet den Container automatisch neu, außer du stoppst ihn manuell
+    restart: unless-stopped
+    
+    # Lädt deine Umgebungsvariablen
+    env_file:
+      - .env
+    
+    # Bindet wichtige Dateien vom Host in den Container ein
+    volumes:
+      # Die Token-Datei muss beschreibbar sein (für den Refresh)
+      - ./bmw_tokens.json:/app/bmw_tokens.json
+      # Die Fahrzeug-Konfiguration (nur lesen reicht theoretisch)
+      - ./vehicle.json:/app/vehicle.json
+      # Das Logfile, damit du es auch außerhalb einfach ansehen kannst
+      - ./bmw_bridge.log:/app/bmw_bridge.log
+      
+    # Zeitzone setzen (optional, aber gut für korrekte Log-Zeitstempel)
+    environment:
+      - TZ=Europe/Vienna  # Oder deine Zeitzone
