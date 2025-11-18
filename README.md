@@ -1,5 +1,5 @@
 
-# BMW CarData Streaming MQTT Bridge
+# BMW CarData Streaming MQTT Bridge (v1.1)
 
 🇬🇧 [English Version below](#english) | 🇦🇹 [Deutsche Version unten](#deutsch)
 
@@ -95,7 +95,7 @@ docker compose up -d --build
 
 <a name="deutsch"></a>
 
-## 🇦🇹 BMW CarData Streaming MQTT Bridge
+## 🇦🇹 BMW CarData Streaming MQTT Bridge (v1.1)
 
 Dieses Projekt dient als stabile Brücke zwischen der offiziellen **BMW CarData Streaming API** und deinem lokalen MQTT-Broker. Es empfängt Fahrzeugdaten in Echtzeit (Push/Streaming) und leitet sie an dein Smart Home System weiter (z.B. Node-RED, Home Assistant, Grafana).
 

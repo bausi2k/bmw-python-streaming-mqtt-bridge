@@ -10,6 +10,9 @@ import signal
 import threading
 import requests
 
+# --- VERSION ---
+__version__ = "1.1.0"
+
 # --- Lade Konfiguration aus .env-Datei ---
 load_dotenv()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -90,6 +93,7 @@ def on_bmw_message(topic: str, data: dict):
         try:
             metric_base_topic = f"{base_topic}/{metric_name.replace('.', '/')}"
             
+            # 1. Veröffentliche das komplette Objekt
             if isinstance(metric_data, (dict, list)):
                 full_payload = json.dumps(metric_data)
                 if local_client_global and local_client_global.is_connected():
@@ -99,6 +103,7 @@ def on_bmw_message(topic: str, data: dict):
                     else:
                         logging.warning(f'  -> Fehler beim Senden an {metric_base_topic}. Code: {result.rc}')
             
+            # 2. Veröffentliche zusätzlich die einzelnen Werte auf Sub-Topics
             if isinstance(metric_data, dict):
                 for key, value in metric_data.items():
                     final_topic = f"{metric_base_topic}/{key}"
@@ -128,9 +133,12 @@ def token_refresh_loop(client: BMWCarDataClient, stop_event: threading.Event):
         
         logging.info("Führe periodischen Token-Refresh-Check durch...")
         try:
+            # Tokens sind in client.tokens gespeichert (Dictionary)
             old_id_token = client.tokens.get('id_token') if client.tokens else None
+            
             if client.authenticate():
                 new_id_token = client.tokens.get('id_token') if client.tokens else None
+                
                 if old_id_token and new_id_token and old_id_token != new_id_token:
                     logging.info("Token wurde erfolgreich erneuert. Starte MQTT-Client neu, um neuen Token zu verwenden.")
                     client.disconnect_mqtt()
@@ -157,6 +165,8 @@ def watchdog_thread(stop_event: threading.Event):
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
+
+    logging.info(f"Starte BMW CarData Client v{__version__}...")
 
     # Prüfe, ob eine Token-Datei existiert
     if not os.path.exists(TOKEN_FILE_PATH):
