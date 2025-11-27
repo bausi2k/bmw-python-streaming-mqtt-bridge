@@ -172,5 +172,9 @@ This project would not be possible without the foundational work done on the Pyt
 
 A huge thank you to the author for reverse-engineering the API and providing a functional client.
 
-```
-```
+
+## 🤝 Credits
+
+**#kiassisted** 🤖
+This project was created with the assistance of AI.
+Code architecture, logic, and documentation support provided by Gemini.
