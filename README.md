@@ -1,6 +1,6 @@
 # BMW Python Streaming MQTT Bridge
 
-[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
+<a href="https://www.buymeacoffee.com/bausi2k" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 
 This project acts as a stable, long-running bridge service that connects to the official BMW CarData Streaming API, authenticates, and forwards vehicle data in real-time to a local MQTT broker.
 
