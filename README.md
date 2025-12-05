@@ -1,11 +1,6 @@
-Ja, selbstverständlich. Wir ersetzen den Docker-Teil im `README.md` durch die Anleitung für die Einrichtung als `systemd`-Service. Das passt perfekt für den Betrieb auf einem Raspberry Pi.
-
-Hier ist die aktualisierte `README.md`-Datei.
-
------
-
-
 # BMW Python Streaming MQTT Bridge
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 
 This project acts as a stable, long-running bridge service that connects to the official BMW CarData Streaming API, authenticates, and forwards vehicle data in real-time to a local MQTT broker.
 
@@ -172,9 +167,11 @@ This project would not be possible without the foundational work done on the Pyt
 
 A huge thank you to the author for reverse-engineering the API and providing a functional client.
 
-
 ## 🤝 Credits
 
 **#kiassisted** 🤖
 This project was created with the assistance of AI.
 Code architecture, logic, and documentation support provided by Gemini.
+
+---
+<a href="https://www.buymeacoffee.com/bausi2k" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
