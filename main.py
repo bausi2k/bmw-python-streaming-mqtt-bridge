@@ -10,6 +10,9 @@ import signal
 import threading
 import requests
 
+# --- VERSION ---
+__version__ = "1.2.0"
+
 # --- Lade Konfiguration aus .env-Datei ---
 load_dotenv()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
