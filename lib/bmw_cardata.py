@@ -193,7 +193,15 @@ class BMWCarDataClient:
         # Extract response data
         user_code = device_response["user_code"]
         device_code = device_response["device_code"]
-        verification_uri_complete = device_response["verification_uri_complete"]
+        user_code = device_response["user_code"]
+        verification_uri = device_response["verification_uri"]
+
+        # --- FIX START ---
+        # Prüfe, ob der komplette Link da ist. Wenn nicht, baue ihn selbst.
+        verification_uri_complete = device_response.get("verification_uri_complete")
+        if not verification_uri_complete:
+            verification_uri_complete = f"{verification_uri}?user_code={user_code}"
+        # --- FIX ENDE ---
         expires_in = device_response["expires_in"]
         interval = device_response.get("interval", 5)
 
