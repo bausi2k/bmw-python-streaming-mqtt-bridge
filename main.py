@@ -11,7 +11,7 @@ import threading
 import requests
 
 # --- VERSION ---
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 # --- Lade Konfiguration aus .env-Datei ---
 load_dotenv()
@@ -188,7 +188,8 @@ if __name__ == "__main__":
     # ------ MODUS 2: NORMALER SERVICE-BETRIEB ------
     logging.info("Token-Datei gefunden. Starte den normalen Service-Betrieb.")
 
-    local_client_global = mqtt.Client()
+    # Wir nutzen explizit Version 1 (Legacy), damit der restliche Code kompatibel bleibt
+    local_client_global = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
     local_client_global.username_pw_set(LOCAL_MQTT_USER, LOCAL_MQTT_PASS)
     
     def on_local_disconnect(client, userdata, rc):
