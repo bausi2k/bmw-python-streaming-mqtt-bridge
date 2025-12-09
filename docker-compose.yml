@@ -16,7 +16,7 @@ services:
     volumes:
       - ./bmw_tokens.json:/app/bmw_tokens.json
       - ./vehicle.json:/app/vehicle.json
-      - ./bmw_bridge.log:/app/bmw_bridge.log
+      - ./logs:/app/logs
       - ./.env:/app/.env
       
     # Setzt die Zeitzone für korrekte Zeitstempel im Log

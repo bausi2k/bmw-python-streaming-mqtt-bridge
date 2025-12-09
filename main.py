@@ -19,7 +19,16 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
 # --- Logging Konfiguration mit zeitbasierter Rotation ---
 log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-log_file = "bmw_bridge.log"
+
+# NEU: Wir nutzen einen Unterordner für Logs
+log_dir = "logs"
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+log_file = os.path.join(log_dir, "bmw_bridge.log")
+
+# Rotiert das Logfile jeden Tag um Mitternacht...
+# (Der Rest bleibt gleich)
 
 # Rotiert das Logfile jeden Tag um Mitternacht und behält 7 alte Versionen
 file_handler = TimedRotatingFileHandler(log_file, when='midnight', backupCount=7, encoding='utf-8')
