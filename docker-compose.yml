@@ -1,0 +1,20 @@
+services:
+  bmw-bridge:
+    # WICHTIG: Ersetze 'bausi2k' und den Repo-Namen durch deine echten Daten!
+    image: ghcr.io/bausi2k/bmw-python-streaming-mqtt-bridge:latest
+    
+    container_name: bmw-bridge
+    restart: unless-stopped
+    
+    env_file:
+      - .env
+    
+    volumes:
+      - ./bmw_tokens.json:/app/bmw_tokens.json
+      - ./vehicle.json:/app/vehicle.json
+      # WICHTIG: Hier haben wir auf den Ordner umgestellt wegen des Log-Rotation-Fehlers
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+      
+    environment:
+      - TZ=Europe/Vienna
