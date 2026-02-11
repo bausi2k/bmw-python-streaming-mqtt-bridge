@@ -11,7 +11,7 @@ import threading
 import requests
 
 # --- VERSION ---
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
 # --- Lade Konfiguration aus .env-Datei ---
 load_dotenv()
