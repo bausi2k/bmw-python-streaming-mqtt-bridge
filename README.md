@@ -21,6 +21,7 @@ It handles the entire OAuth2 authentication lifecycle, including automatic token
 * **Watchdog:** Monitors data traffic and restarts connections if the stream stalls.
 * **Dockerized:** Available as a pre-built Multi-Arch Image (amd64/arm64) via GitHub Container Registry.
 * **Dynamic Topics:** Flattens complex JSON data into clean MQTT topics (e.g., `home/bmw/live/vehicle/mileage`).
+* **Mulit Car Mode:** [https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908](https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908)
 
 ### ⚠️ Acknowledgements & Credits
 
@@ -154,6 +155,7 @@ Der Service kümmert sich vollautomatisch um die OAuth2-Authentifizierung und da
   * **Watchdog:** Überwacht den Datenfluss und startet die Verbindung neu, falls keine Daten mehr ankommen.
   * **Docker:** Verfügbar als vorgefertigtes Multi-Arch Image (amd64/arm64) über die GitHub Container Registry.
   * **Strukturierte Daten:** Wandelt komplexe JSON-Objekte in saubere MQTT-Topics um (z.B. `home/bmw/live/vehicle/mileage`).
+  * **Mulit Car Mode:** [https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908](https://github.com/bausi2k/bmw-python-streaming-mqtt-bridge/issues/2#issuecomment-3883328908)
 
 ### ⚠️ Danksagung & Credits
 
