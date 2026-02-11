@@ -60,7 +60,9 @@ LOCAL_MQTT_URL = os.getenv("LOCAL_MQTT_URL")
 LOCAL_MQTT_PORT = int(os.getenv("LOCAL_MQTT_PORT"))
 LOCAL_MQTT_USER = os.getenv("LOCAL_MQTT_USER")
 LOCAL_MQTT_PASS = os.getenv("LOCAL_MQTT_PASS")
+LOCAL_MQTT_BASETOPIC = os.getenv("LOCAL_MQTT_BASETOPIC", "home/bmw/live")
 MQTT_USERNAME = os.getenv("MQTT_USERNAME")
+
 
 # Feste Konstanten
 TOKEN_FILE_PATH = "bmw_tokens.json"
@@ -91,7 +93,7 @@ def on_bmw_message(topic: str, data: dict):
     global last_bmw_message_timestamp
     last_bmw_message_timestamp = time.time()
     logging.debug(f"--- 🔴 BMW-Daten empfangen ---")
-    base_topic = "home/bmw/live"
+    base_topic = LOCAL_MQTT_BASETOPIC
     data_points = data.get('data', {})
 
     if not data_points:

@@ -61,6 +61,7 @@ LOCAL_MQTT_URL=192.168.1.xxx
 LOCAL_MQTT_PORT=1883
 LOCAL_MQTT_USER=your_local_user
 LOCAL_MQTT_PASS=your_local_password
+LOCAL_MQTT_BASETOPIC=home/bmw/data
 
 # Logs
 LOG_LEVEL=INFO
