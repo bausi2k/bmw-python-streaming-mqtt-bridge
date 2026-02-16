@@ -11,7 +11,7 @@ import threading
 import requests
 
 # --- VERSION ---
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 
 # --- Lade Konfiguration aus .env-Datei ---
 load_dotenv()
@@ -26,9 +26,6 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
 log_file = os.path.join(log_dir, "bmw_bridge.log")
-
-# Rotiert das Logfile jeden Tag um Mitternacht...
-# (Der Rest bleibt gleich)
 
 # Rotiert das Logfile jeden Tag um Mitternacht und behält 7 alte Versionen
 file_handler = TimedRotatingFileHandler(log_file, when='midnight', backupCount=7, encoding='utf-8')
@@ -63,6 +60,8 @@ LOCAL_MQTT_PASS = os.getenv("LOCAL_MQTT_PASS")
 LOCAL_MQTT_BASETOPIC = os.getenv("LOCAL_MQTT_BASETOPIC", "home/bmw/live")
 MQTT_USERNAME = os.getenv("MQTT_USERNAME")
 
+# NEU: VIN an Topic anhängen? (Default: False)
+LOCAL_MQTT_APPEND_VIN = os.getenv("LOCAL_MQTT_APPEND_VIN", "false").lower() in ("true", "1", "yes", "on")
 
 # Feste Konstanten
 TOKEN_FILE_PATH = "bmw_tokens.json"
@@ -93,7 +92,19 @@ def on_bmw_message(topic: str, data: dict):
     global last_bmw_message_timestamp
     last_bmw_message_timestamp = time.time()
     logging.debug(f"--- 🔴 BMW-Daten empfangen ---")
-    base_topic = LOCAL_MQTT_BASETOPIC
+    
+    # 1. Basis-Topic bestimmen
+    current_base_topic = LOCAL_MQTT_BASETOPIC
+
+    # 2. Falls aktiviert: VIN aus dem BMW-Topic holen und anhängen
+    if LOCAL_MQTT_APPEND_VIN:
+        try:
+            # Topic-Format ist meist "GCID/VIN" -> wir nehmen den letzten Teil
+            vin_from_topic = topic.split('/')[-1]
+            current_base_topic = f"{LOCAL_MQTT_BASETOPIC}/{vin_from_topic}"
+        except Exception:
+            logging.warning(f"Konnte VIN nicht aus Topic '{topic}' extrahieren. Nutze Standard.")
+
     data_points = data.get('data', {})
 
     if not data_points:
@@ -102,7 +113,8 @@ def on_bmw_message(topic: str, data: dict):
 
     for metric_name, metric_data in data_points.items():
         try:
-            metric_base_topic = f"{base_topic}/{metric_name.replace('.', '/')}"
+            # Hier nutzen wir jetzt 'current_base_topic' statt der Konstante
+            metric_base_topic = f"{current_base_topic}/{metric_name.replace('.', '/')}"
             
             if isinstance(metric_data, (dict, list)):
                 full_payload = json.dumps(metric_data)

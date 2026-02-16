@@ -63,6 +63,7 @@ LOCAL_MQTT_PORT=1883
 LOCAL_MQTT_USER=your_local_user
 LOCAL_MQTT_PASS=your_local_password
 LOCAL_MQTT_BASETOPIC=home/bmw/data
+LOCAL_MQTT_APPEND_VIN=false #Optional for multicar Instanze: VIN a (z.B. home/bmw/live/WBA.../...)
 
 # Logs
 LOG_LEVEL=INFO
@@ -197,6 +198,7 @@ LOCAL_MQTT_URL=192.168.1.xxx
 LOCAL_MQTT_PORT=1883
 LOCAL_MQTT_USER=dein_lokaler_user
 LOCAL_MQTT_PASS=dein_lokales_passwort
+LOCAL_MQTT_APPEND_VIN=false #Optional für mehrauto Instanze: VIN a (z.B. home/bmw/live/WBA.../...)
 
 # Logs
 LOG_LEVEL=INFO

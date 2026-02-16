@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-16
+### Added
+- **Multi-Car Support:** Neue Option `LOCAL_MQTT_APPEND_VIN` in der `.env`. Wenn aktiviert (`true`), wird die VIN an das MQTT-Basis-Topic angehängt (z.B. `home/bmw/live/<VIN>/...`). Dies ermöglicht den Betrieb mehrerer Container für unterschiedliche Fahrzeuge am selben Broker.
 
 
 ## [1.2.2] - 2025-02-14
